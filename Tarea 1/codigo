@@ -1,0 +1,263 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
+
+typedef struct{
+    int id;
+    char nombre[50];
+    int prioridad; // 1 = Alto, 2 = Medio, 3 = Bajo
+    char problema[50];
+    char fecha[20];
+    char hora[10];
+} Ticket;
+
+typedef struct Nodo Nodo;
+
+struct Nodo {
+    Ticket ticket;
+    Nodo* prev;
+    Nodo* next;
+};
+
+Nodo* head = NULL;
+Nodo* tail = NULL;
+
+Nodo* crearNodo(Ticket ticket) {
+    Nodo* nuevoNodo = (Nodo*)malloc(sizeof(Nodo));
+    nuevoNodo->ticket = ticket;
+    nuevoNodo->prev = NULL;
+    nuevoNodo->next = NULL;
+    return nuevoNodo;
+}
+void list_create() {
+    head = NULL;
+    tail = NULL;
+}
+void list_pushBack(Ticket ticket) {
+    Nodo* nuevoNodo = crearNodo(ticket);
+    if (head == NULL) {
+        head = nuevoNodo;
+        tail = nuevoNodo;
+    } else {
+        tail->next = nuevoNodo;
+        nuevoNodo->prev = tail;
+        tail = nuevoNodo;
+    }
+}
+Ticket* list_first() {
+    if (head == NULL) {
+        return NULL;
+    }
+    return &head->ticket;
+}
+
+Nodo* current = NULL;
+
+Ticket* list_next() {
+    if (current == NULL) {
+        current = head;
+    } else {
+        current = current->next;
+    }
+    if (current == NULL) {
+        return NULL;
+    }
+    return &current->ticket;
+}
+
+// Solicita al usuario los datos de un nuevo ticket y los devuelve como un Ticket
+Ticket IngresarDatos() {
+    Ticket nuevoTicket;
+    printf("Ingrese el ID: ");
+    scanf("%d", &nuevoTicket.id);
+    printf("Ingrese el nombre: ");
+    getchar(); 
+    fgets(nuevoTicket.nombre, 50, stdin);
+    nuevoTicket.nombre[strcspn(nuevoTicket.nombre, "\n")] = '\0'; 
+    printf("Ingrese la descripción del problema: ");
+    fgets(nuevoTicket.problema, 50, stdin);
+    nuevoTicket.problema[strcspn(nuevoTicket.problema, "\n")] = '\0';
+    nuevoTicket.prioridad = 3; // Prioridad por defecto: Baja
+
+    // Obtiene la fecha y hora actuales
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+    sprintf(nuevoTicket.fecha, "%02d-%02d-%04d", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900);
+    sprintf(nuevoTicket.hora, "%02d:%02d", tm.tm_hour, tm.tm_min);
+
+    return nuevoTicket;
+}
+
+// Busca un ticket por su ID y actualiza su prioridad
+// Si el ID no existe, muestra un mensaje de error
+void asignarPrioridad() {
+    int id, nuevaPrioridad;
+    printf("Ingrese el ID del ticket al que desea asignar prioridad: ");
+    scanf("%d", &id);
+    Nodo* actual = head;
+    while (actual != NULL) {
+        if (actual->ticket.id == id) {
+            printf("Ingrese la prioridad del ticekt (1 = Alto, 2 = Medio, 3 = Bajo): ");
+            scanf("%d", &nuevaPrioridad);
+            if (nuevaPrioridad < 1 || nuevaPrioridad > 3) { // Valida la prioridad
+                printf("Prioridad no válida. Intente de nuevo.\n");
+                return;
+            }
+            actual->ticket.prioridad = nuevaPrioridad; // Actualiza la prioridad
+            printf("Prioridad del ticket con ID %d actualizada a %d.\n", id, nuevaPrioridad);
+            return;
+        }
+        actual = actual->next;
+    }
+    printf("No se encontró un ticket con el ID especificado.\n");
+}
+
+// Muestra todos los tickets pendientes en la lista
+// Si no hay tickets, muestra un mensaje indicando que no hay tickets pendientes en la lista 
+void mostrarTicketsPendientes() {
+    Nodo* actual = head;
+    if (actual == NULL) {
+        printf("No hay tickets pendientes.\n");
+        return;
+    }
+    printf("Lista de tickets pendientes:\n");
+    while (actual != NULL) {
+        printf("ID: %d, Nombre: %s, Prioridad: %d, Problema: %s, Fecha: %s, Hora: %s\n",
+               actual->ticket.id, actual->ticket.nombre, actual->ticket.prioridad,
+               actual->ticket.problema, actual->ticket.fecha, actual->ticket.hora);
+        actual = actual->next;
+    }
+}
+
+// Procesa el ticket con mayor prioridad en la lista
+// Si hay varios tickets con la misma prioridad, procesa el más antiguo
+void procesarSiguienteTicket() {
+    if (head == NULL) {
+        printf("No hay tickets pendientes.\n");
+        return;
+    }
+
+    Nodo* actual = head;
+    Nodo* ticketPrioritario = head;
+
+    // Busca el ticket con mayor prioridad
+    while (actual != NULL) {
+        if (actual->ticket.prioridad < ticketPrioritario->ticket.prioridad ||
+            (actual->ticket.prioridad == ticketPrioritario->ticket.prioridad &&
+             strcmp(actual->ticket.hora, ticketPrioritario->ticket.hora) < 0)) {
+            ticketPrioritario = actual;
+        }
+        actual = actual->next;
+    }
+
+    // Muestra los detalles del ticket procesado
+    printf("Procesando ticket:\n");
+    printf("ID: %d, Nombre: %s, Prioridad: %d, Problema: %s, Fecha: %s, Hora: %s\n",
+           ticketPrioritario->ticket.id, ticketPrioritario->ticket.nombre,
+           ticketPrioritario->ticket.prioridad, ticketPrioritario->ticket.problema,
+           ticketPrioritario->ticket.fecha, ticketPrioritario->ticket.hora);
+
+    // Elimina el ticket de la lista       
+    if (ticketPrioritario == head) {
+        head = head->next;
+        if (head != NULL) head->prev = NULL;
+    } else if (ticketPrioritario == tail) {
+        tail = tail->prev;
+        if (tail != NULL) tail->next = NULL;
+    } else {
+        ticketPrioritario->prev->next = ticketPrioritario->next;
+        ticketPrioritario->next->prev = ticketPrioritario->prev;
+    }
+
+    free(ticketPrioritario);
+}
+
+// Busca un ticket por su ID y muestra sus detalles
+// Si el ID no existe, muestra un mensaje de error
+void buscarTicketPorID(int id) {
+    Nodo* actual = head;
+    while (actual != NULL) {
+        if (actual->ticket.id == id) {
+            printf("Detalles del ticket:\n");
+            printf("ID: %d, Nombre: %s, Prioridad: %d, Problema: %s, Fecha: %s, Hora: %s\n",
+                   actual->ticket.id, actual->ticket.nombre, actual->ticket.prioridad,
+                   actual->ticket.problema, actual->ticket.fecha, actual->ticket.hora);
+            return;
+        }
+        actual = actual->next;
+    }
+    printf("No se encontró un ticket con el ID especificado.\n");
+}
+
+// Libera la memoria de todos los nodos de la lista
+// Deja la lista vacía al finalizar
+void liberarMemoria() {
+    Nodo* actual = head;
+    while (actual != NULL) {
+        Nodo* temp = actual; 
+        actual = actual->next;
+        free(temp);
+    }
+    head = NULL;
+    tail = NULL;
+}
+
+int main() {
+    list_create();
+    int opcion;
+    char entrada[10];
+
+    do {
+        printf("========================================\n");
+        printf("  MENU PRINCIPAL DE TICKETS  \n");
+        printf("========================================\n");
+        printf("Para seleccionar una opcion, ingrese el numero correspondiente: \n");
+        printf("1. Ingresar Ticket\n");
+        printf("2. Asignar prioridad a Tickets\n");
+        printf("3. Mostrar Tickets pendientes\n");
+        printf("4. Procesar Ticket\n");
+        printf("5. Buscar Ticket\n");
+        printf("6. Salir\n");
+        printf("Ingrese su opción: ");
+        fgets(entrada, sizeof(entrada), stdin); // Lee la entrada del usuario
+
+        if (sscanf(entrada, "%d", &opcion) != 1) { // Valida la entrada
+            printf("Entrada no válida, ingrese un número entre 1 y 6.\n");
+            continue; 
+        }
+
+        // Ejecuta la opción seleccionada
+        switch (opcion) {
+            case 1: {
+                Ticket nuevoTicket = IngresarDatos();
+                list_pushBack(nuevoTicket);
+                break;
+            }
+            case 2:
+                asignarPrioridad();
+                break;
+            case 3:
+                mostrarTicketsPendientes();
+                break;
+            case 4:
+                procesarSiguienteTicket();
+                break;
+            case 5: {
+                int id;
+                printf("Ingrese el ID del ticket a buscar: ");
+                scanf("%d", &id);
+                buscarTicketPorID(id);
+                break;
+            }
+            case 6:
+                printf("Saliendo del programa...\n");
+                liberarMemoria(); // Libera la memoria antes de salir
+                break;
+            default:
+                printf("Opción no válida. Intente de nuevo.\n");
+        }
+    } while (opcion != 6);
+
+    return 0;
+}
